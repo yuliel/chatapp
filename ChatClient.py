@@ -1,14 +1,13 @@
 from ConnectionHandler import ConnectionHandler
-import logging
-import threading
+from ChatListener import ChatListener
+from threading import Thread
 import sys
 
 class ChatClient:
 
     def __init__(self):
         self.conn_handler = ConnectionHandler()
-        wconn_thread = threading.Thread(target=self.conn_handler.start_wconn, args=[self.conn_handler])
-        wconn_thread.start()
+        self.listener = Thread(target=ChatListener.do_listen, args=[self.conn_handler]).start()
 
     def close_connection(self):
         self.conn_handler.close_connection()
@@ -54,10 +53,9 @@ class ChatClient:
 
 
     def run(self):
-        self.login()
-
-        # start_wconn(s)
         # encrypt(s)
+        self.login()
+        # start_wconn(s)
 
         while True:
             show = """\n

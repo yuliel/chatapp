@@ -6,6 +6,9 @@ AUTHORIZE_COMMAND = "authorize"
 SEND_MESSAGE_COMMAND = "sendto"
 WCONN_COMMAND = "wconn"
 
+MESSAGE_PREFIX = "msg"
+CLOSE_PREFIX = "close"
+
 OK_STATUS = "ok"
 
 class ChatProtocol:
@@ -14,8 +17,12 @@ class ChatProtocol:
         return f"{LOGIN_COMMAND}{DELIMITER}{username}{DELIMITER}{pwd}"
 
     @staticmethod
-    def parse_login(data):
+    def parse_response(data):
         return data.split(DELIMITER)
+
+    @staticmethod
+    def parse_push_message(data):
+        return data.split(DELIMITER)[0], data.split(DELIMITER)[1:]
 
     @staticmethod
     def build_close_connection():
@@ -26,20 +33,12 @@ class ChatProtocol:
         return f"{CONNECTED_COMMAND}{DELIMITER}"
 
     @staticmethod
-    def parse_connected(data):
-        return data.split(DELIMITER)
-
-    @staticmethod
     def build_authorize(username):
         return f"{AUTHORIZE_COMMAND}{DELIMITER}{username}"
 
     @staticmethod
     def build_send_message(target_user, msg):
         return f"{SEND_MESSAGE_COMMAND}{DELIMITER}{target_user}{DELIMITER}{msg}"
-
-    @staticmethod
-    def parse_authorize(data):
-        return data.split(DELIMITER)
 
     @staticmethod
     def parse_send_message(data):

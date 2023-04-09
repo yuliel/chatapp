@@ -4,10 +4,30 @@ import logging
 from connection_utils import *
 from time import sleep
 from ChatProtocol import *
-import threading
 
 
 class ConnectionHandler:
+
+    def __init__(self):
+        self.__servers_addresses = {PRIMARY_NAME: ConnectionHandler.get_server_address(PRIMARY_NAME),
+                                    SECONDARY_NAME: ConnectionHandler.get_server_address(SECONDARY_NAME)}
+
+        self.__servers_sockets = {PRIMARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+                                  SECONDARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM)}
+
+        self.__connected_server = None
+        self.__wconn_socket = None
+        while self.__connected_server is None:
+            try:
+                self.__connect_server(PRIMARY_NAME)
+                self.__connected_server = self.__servers_sockets.get(PRIMARY_NAME)
+            except ConnectionError:
+                try:
+                    self.__connect_server(SECONDARY_NAME)
+                    self.__connected_server = self.__servers_sockets.get(SECONDARY_NAME)
+                except ConnectionError:
+                    logging.error("Cannot connect chat server. Waiting few seconds")
+                    sleep(3)
 
     @classmethod
     def get_server_address(cls, server_type):
@@ -27,36 +47,20 @@ class ConnectionHandler:
         self.__servers_sockets.get(server_type).connect(self.__servers_addresses.get(server_type))
         logging.info(f"{server_type} connected")
 
-    def start_wconn(self, connection_handler):
-        wconn_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        wconn_socket.bind((WCONN_IP, 0))
-        wconn_socket.listen()
-        connection_handler.__send_wconn(WCONN_IP, wconn_socket.getsockname()[1])
+    def start_listener(self, connection_handler):
+        self.__wconn_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__wconn_socket.bind((WCONN_IP, 0))
+        self.__wconn_socket.listen()
+        connection_handler.__send_wconn(WCONN_IP, self.__wconn_socket.getsockname()[1])
 
-        conn, address = wconn_socket.accept()
-        data = conn.recv(MSG_SIZE).decode()
-        print(data)
-
-
-    def __init__(self):
-        self.__servers_addresses = {PRIMARY_NAME: ConnectionHandler.get_server_address(PRIMARY_NAME),
-                                    SECONDARY_NAME: ConnectionHandler.get_server_address(SECONDARY_NAME)}
-
-        self.__servers_sockets = {PRIMARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-                                  SECONDARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM)}
-
-        self.__connected_server = None
-        while self.__connected_server is None:
-            try:
-                self.__connect_server(PRIMARY_NAME)
-                self.__connected_server = self.__servers_sockets.get(PRIMARY_NAME)
-            except ConnectionError:
-                try:
-                    self.__connect_server(SECONDARY_NAME)
-                    self.__connected_server = self.__servers_sockets.get(SECONDARY_NAME)
-                except ConnectionError:
-                    logging.error("Cannot connect chat server. Waiting few seconds")
-                    sleep(3)
+    def do_listen(self):
+        conn, address = self.__wconn_socket.accept()
+        try:
+            return conn.recv(MSG_SIZE).decode()
+        except ConnectionResetError:
+            print("the main server is down. closing connection")
+            self.close_connection()
+            exit()
 
     def __get_server(self):
         return self.__connected_server
@@ -81,7 +85,7 @@ class ConnectionHandler:
     def login(self, username, pwd):
         try:
             self.__send_message(ChatProtocol.build_login(username, pwd))
-            status, msg = ChatProtocol.parse_login(self.__receive_message())
+            status, msg = ChatProtocol.parse_response(self.__receive_message())
             if status == OK_STATUS:
                 logging.info(f"User '{username}' logged in successfully")
                 return True
@@ -100,7 +104,7 @@ class ConnectionHandler:
         try:
             logging.info(f"authorizing {username}")
             self.__send_message(ChatProtocol.build_authorize(username))
-            status, msg = ChatProtocol.parse_authorize(self.__receive_message())
+            status, msg = ChatProtocol.parse_response(self.__receive_message())
             if status == OK_STATUS:
                 logging.info(f"User '{username}' authorized")
             else:
@@ -111,7 +115,7 @@ class ConnectionHandler:
     def get_connected_users(self):
         try:
             self.__send_message(ChatProtocol.build_get_connected_users())
-            connected, authorized = ChatProtocol.parse_connected(self.__receive_message())
+            connected, authorized = ChatProtocol.parse_response(self.__receive_message())
             return connected, authorized
         except Exception:
             logging.error("Error during get connected users")
@@ -120,13 +124,14 @@ class ConnectionHandler:
     def send_message(self, target_user, msg):
         try:
             self.__send_message(ChatProtocol.build_send_message(target_user, msg))
-            status, msg = ChatProtocol.parse_send_message(self.__receive_message())
+            status, msg = ChatProtocol.parse_response(self.__receive_message())
             if status == OK_STATUS:
                 logging.info(f"message send")
             else:
                 logging.warning(f"couldn't send message: {msg}")
         except Exception:
             logging.error("Error during send_message")
+
 
 
 
