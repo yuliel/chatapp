@@ -1,6 +1,6 @@
-import http.client
 import socket
 import logging
+from ConnectionServer import ConnectionServer
 from connection_utils import *
 from time import sleep
 from ChatProtocol import *
@@ -9,43 +9,21 @@ from ChatProtocol import *
 class ConnectionHandler:
 
     def __init__(self):
-        self.__servers_addresses = {PRIMARY_NAME: ConnectionHandler.get_server_address(PRIMARY_NAME),
-                                    SECONDARY_NAME: ConnectionHandler.get_server_address(SECONDARY_NAME)}
-
-        self.__servers_sockets = {PRIMARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-                                  SECONDARY_NAME: socket.socket(socket.AF_INET, socket.SOCK_STREAM)}
-
-        self.__connected_server = None
         self.__wconn_socket = None
-        while self.__connected_server is None:
+        self.__chat_server = self.__connect_chat_server()
+
+    @staticmethod
+    def __connect_chat_server():
+        chat_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_address = ConnectionServer.get_chat_server_address()
+        while True:
             try:
-                self.__connect_server(PRIMARY_NAME)
-                self.__connected_server = self.__servers_sockets.get(PRIMARY_NAME)
+                chat_server.connect(server_address)
+                break
             except ConnectionError:
-                try:
-                    self.__connect_server(SECONDARY_NAME)
-                    self.__connected_server = self.__servers_sockets.get(SECONDARY_NAME)
-                except ConnectionError:
-                    logging.error("Cannot connect chat server. Waiting few seconds")
-                    sleep(3)
-
-    @classmethod
-    def get_server_address(cls, server_type):
-        try:
-            connection = http.client.HTTPConnection(f"{CONNECTION_SERVER_IP}:{CONNECTION_SERVER_PORT}")
-            connection.request("GET", f"/{server_type}")
-            address = connection.getresponse().read().decode().split(":")
-            return (address[0], int(address[1]))
-        except ConnectionError:
-            logging.error("Error Connecting Connection Server")
-            return None
-        except ValueError:
-            logging.error(f"Invalid address received for {server_type}")
-            return None
-
-    def __connect_server(self, server_type):
-        self.__servers_sockets.get(server_type).connect(self.__servers_addresses.get(server_type))
-        logging.info(f"{server_type} connected")
+                print("Cannot connect chat server. Waiting 5 seconds")
+                sleep(5)
+        return chat_server
 
     def start_listener(self, connection_handler):
         self.__wconn_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -64,15 +42,10 @@ class ConnectionHandler:
             exit()
 
     def __get_server(self):
-        return self.__connected_server
+        return self.__chat_server
 
     def __switch_server(self):
-        if self.__connected_server == self.__servers_sockets.get(PRIMARY_NAME):
-            self.__connect_server(SECONDARY_NAME)
-            self.__connected_server = self.__servers_sockets.get(SECONDARY_NAME)
-            logging.info("Server switched")
-        else:
-            logging.error("Error switching server")
+        self.__chat_server = self.__connect_chat_server()
 
     def __send_message(self, msg):
         self.__get_server().send(msg.encode())
@@ -138,8 +111,7 @@ class ConnectionHandler:
 
 def main():
     logging.basicConfig(level=logging.INFO)
-#    assert ConnectionHandler.get_server_address(PRIMARY_NAME) == (PRIMARY_IP, PRIMARY_PORT)
-#    assert ConnectionHandler.get_server_address(SECONDARY_NAME) == (SECONDARY_IP, SECONDARY_PORT)
+    ConnectionServer.get_chat_server_address()
     ch = ConnectionHandler()
     ch.login("user1", "pwd1")
 
