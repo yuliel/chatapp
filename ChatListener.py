@@ -4,10 +4,10 @@ class ChatListener:
 
     @staticmethod
     def do_listen(connection_handler):
-        connection_handler.start_listener(connection_handler)
+        conn = connection_handler.start_listener(connection_handler)
 
         while True:
-            command, data = ChatProtocol.parse_push_message(connection_handler.do_listen())
+            command, data = ChatProtocol.parse_push_message(connection_handler.do_listen(conn))
 
             if command == MESSAGE_PREFIX:
                 print(f"got msg from {data[0]}: {data[1]}")

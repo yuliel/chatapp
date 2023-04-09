@@ -7,6 +7,9 @@ class ChatClient:
 
     def __init__(self):
         self.conn_handler = ConnectionHandler()
+        self.listener = None
+
+    def start_listener(self):
         self.listener = Thread(target=ChatListener.do_listen, args=[self.conn_handler]).start()
 
     def close_connection(self):
@@ -53,9 +56,8 @@ class ChatClient:
 
 
     def run(self):
-        # encrypt(s)
         self.login()
-        # start_wconn(s)
+        self.start_listener()
 
         while True:
             show = """\n
