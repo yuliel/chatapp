@@ -52,10 +52,11 @@ class ConnectionHandler:
         self.__wconn_socket.bind((WCONN_IP, 0))
         self.__wconn_socket.listen()
         connection_handler.__send_wconn(WCONN_IP, self.__wconn_socket.getsockname()[1])
+        conn, address = self.__wconn_socket.accept()
+        return conn
 
-    def do_listen(self):
+    def do_listen(self, conn):
         try:
-            conn, address = self.__wconn_socket.accept()
             return conn.recv(MSG_SIZE).decode()
         except ConnectionResetError:
             print("the main server is down. closing connection")
