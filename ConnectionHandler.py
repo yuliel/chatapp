@@ -9,8 +9,8 @@ from ChatProtocol import *
 class ConnectionHandler:
 
     def __init__(self):
-        self.__wconn_socket = None
         self.__chat_server = self.__connect_chat_server()
+        self.__wconn_socket = None
 
     @staticmethod
     def __connect_chat_server():
