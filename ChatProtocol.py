@@ -4,6 +4,7 @@ CLOSE_COMMAND = "close"
 CONNECTED_COMMAND = "connected"
 AUTHORIZE_COMMAND = "authorize"
 SEND_MESSAGE_COMMAND = "sendto"
+WCONN_COMMAND = "wconn"
 
 OK_STATUS = "ok"
 
@@ -42,5 +43,13 @@ class ChatProtocol:
 
     @staticmethod
     def parse_send_message(data):
+        return data.split(DELIMITER)
+
+    @staticmethod
+    def build_set_wconn(ip, port):
+        return f"{WCONN_COMMAND}{DELIMITER}{ip}{DELIMITER}{port}"
+
+    @staticmethod
+    def parse_set_wconn(data):
         return data.split(DELIMITER)
 

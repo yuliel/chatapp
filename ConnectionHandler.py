@@ -4,6 +4,7 @@ import logging
 from connection_utils import *
 from time import sleep
 from ChatProtocol import *
+import threading
 
 
 class ConnectionHandler:
@@ -26,6 +27,17 @@ class ConnectionHandler:
         self.__servers_sockets.get(server_type).connect(self.__servers_addresses.get(server_type))
         logging.info(f"{server_type} connected")
 
+    def start_wconn(self, connection_handler):
+        wconn_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        wconn_socket.bind((WCONN_IP, 0))
+        wconn_socket.listen()
+        connection_handler.__send_wconn(WCONN_IP, wconn_socket.getsockname()[1])
+
+        conn, address = wconn_socket.accept()
+        data = conn.recv(MSG_SIZE).decode()
+        print(data)
+
+
     def __init__(self):
         self.__servers_addresses = {PRIMARY_NAME: ConnectionHandler.get_server_address(PRIMARY_NAME),
                                     SECONDARY_NAME: ConnectionHandler.get_server_address(SECONDARY_NAME)}
@@ -46,7 +58,6 @@ class ConnectionHandler:
                     logging.error("Cannot connect chat server. Waiting few seconds")
                     sleep(3)
 
-
     def __get_server(self):
         return self.__connected_server
 
@@ -63,6 +74,9 @@ class ConnectionHandler:
 
     def __receive_message(self):
         return self.__get_server().recv(MSG_SIZE).decode()
+
+    def __send_wconn(self, ip, port):
+        self.__send_message(ChatProtocol.build_set_wconn(ip, port))
 
     def login(self, username, pwd):
         try:
