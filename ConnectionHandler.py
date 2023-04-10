@@ -41,17 +41,20 @@ class ConnectionHandler:
             self.close_connection()
             exit()
 
-    def __get_server(self):
-        return self.__chat_server
-
-    def __switch_server(self):
+    def __reconnect_server(self):
         self.__chat_server = self.__connect_chat_server()
 
     def __send_message(self, msg):
-        self.__get_server().send(msg.encode())
+        try:
+            self.__chat_server.send(msg.encode())
+        except ConnectionError:
+            self.__reconnect_server()
 
     def __receive_message(self):
-        return self.__get_server().recv(MSG_SIZE).decode()
+        try:
+            return self.__chat_server.recv(MSG_SIZE).decode()
+        except ConnectionError:
+            self.__reconnect_server()
 
     def __send_wconn(self, ip, port):
         self.__send_message(ChatProtocol.build_set_wconn(ip, port))
