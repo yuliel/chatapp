@@ -8,8 +8,9 @@ class ChatListener:
 
         while True:
             command, data = ChatProtocol.parse_push_message(connection_handler.do_listen(conn))
-
-            if command == MESSAGE_PREFIX:
+            if command == OK_STATUS:
+                print(data[0])
+            elif command == MESSAGE_PREFIX:
                 print(f"got msg from {data[0]}: {data[1]}")
             elif command == CLOSE_PREFIX:
                 connection_handler.close_connection()

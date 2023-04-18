@@ -53,9 +53,11 @@ class ChatClient:
             if not valid_user:
                 print("try doing better...")
 
-
+    def start_encrypt(self):
+        self.conn_handler.start_encrypt()
 
     def run(self):
+        self.start_encrypt()
         self.login()
         self.start_listener()
 

@@ -4,12 +4,15 @@ from ConnectionServer import ConnectionServer
 from connection_utils import *
 from time import sleep
 from ChatProtocol import *
+import Encryption_handler
 
 
 class ConnectionHandler:
 
     def __init__(self):
         self.__chat_server = self.__connect_chat_server()
+        self.__server_public_key = None
+        self.__client_keys = Encryption_handler.get_keys()
         self.__wconn_socket = None
 
     @staticmethod
@@ -35,7 +38,7 @@ class ConnectionHandler:
 
     def do_listen(self, conn):
         try:
-            return conn.recv(MSG_SIZE).decode()
+            return Encryption_handler.decrypt(conn.recv(MSG_SIZE), self.__client_keys["pr"])
         except ConnectionResetError:
             print("the main server is down. closing connection")
             self.close_connection()
@@ -44,38 +47,68 @@ class ConnectionHandler:
     def __reconnect_server(self):
         self.__chat_server = self.__connect_chat_server()
 
-    def __send_message(self, msg):
+    def __send_message(self, msg, to_enc=True):
         try:
-            self.__chat_server.send(msg.encode())
+            if not to_enc:
+                try:
+                    self.__chat_server.send(msg.encode())
+                except AttributeError:
+                    self.__chat_server.send(msg)
+            else:
+                self.__chat_server.send(Encryption_handler.encrypt(msg, self.__server_public_key))
         except ConnectionError:
             self.__reconnect_server()
 
-    def __receive_message(self):
+    def __receive_message(self, to_decrypt=True):
         try:
-            return self.__chat_server.recv(MSG_SIZE).decode()
+            if not to_decrypt:
+                try:
+                    data = self.__chat_server.recv(MSG_SIZE)
+                    return data.decode()
+                except Exception:
+                    return data
+            else:
+                return Encryption_handler.decrypt(self.__chat_server.recv(MSG_SIZE), self.__client_keys["pr"])
+
         except ConnectionError:
             self.__reconnect_server()
 
     def __send_wconn(self, ip, port):
-        self.__send_message(ChatProtocol.build_set_wconn(ip, port))
+        try:
+            self.__send_message(ChatProtocol.build_set_wconn(ip, port))
+            status, msg = ChatProtocol.parse_response(self.__receive_message())
+            if status == OK_STATUS:
+                pass
+        except Exception:
+            print("Error during login")
+            return False
 
     def login(self, username, pwd):
         try:
             self.__send_message(ChatProtocol.build_login(username, pwd))
             status, msg = ChatProtocol.parse_response(self.__receive_message())
             if status == OK_STATUS:
-                logging.info(f"User '{username}' logged in successfully")
+                print(f"User '{username}' logged in successfully")
                 return True
             else:
                 logging.warning(f"User '{username}' failed to logged in. {msg}")
                 return False
         except Exception:
-            logging.error("Error during login")
+            print("Error during login")
             return False
 
     def close_connection(self):
         logging.info(f"closing")
         self.__send_message(ChatProtocol.build_close_connection())
+
+    def start_encrypt(self):
+        self.__send_message(ChatProtocol.build_start_encrypt(), False)
+        status, msg = ChatProtocol.parse_start_encrypt(self.__receive_message(False))
+        if status != OK_STATUS:
+            logging.error(f"error while replacing keys. msg: {msg}")
+            raise Exception
+        self.__send_message(Encryption_handler.save_public(self.__client_keys["pb"]), False)
+        self.__server_public_key = Encryption_handler.load_public(self.__receive_message(False))
 
     def authorize(self, username):
         try:

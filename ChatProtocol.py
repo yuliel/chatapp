@@ -5,6 +5,7 @@ CONNECTED_COMMAND = "connected"
 AUTHORIZE_COMMAND = "authorize"
 SEND_MESSAGE_COMMAND = "sendto"
 WCONN_COMMAND = "wconn"
+ENCRYPT_COMMAND = "start_enc"
 
 MESSAGE_PREFIX = "msg"
 CLOSE_PREFIX = "close"
@@ -50,5 +51,13 @@ class ChatProtocol:
 
     @staticmethod
     def parse_set_wconn(data):
+        return data.split(DELIMITER)
+
+    @staticmethod
+    def build_start_encrypt():
+        return f"{ENCRYPT_COMMAND}{DELIMITER}"
+
+    @staticmethod
+    def parse_start_encrypt(data):
         return data.split(DELIMITER)
 
